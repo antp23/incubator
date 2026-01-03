@@ -32,59 +32,63 @@ async function seed() {
 
     // Create event types
     const eventTypes = [
+      // A. Order & Master Data Events
       {
         name: 'Manual Order',
-        sow: 'SOW Section 3.1',
+        sow: 'SOW Section 3.1 - Manual Order Processing',
         billing_method: 'per-event'
       },
       {
-        name: 'Order Modification',
-        sow: 'SOW Section 3.2',
+        name: 'Material Add',
+        sow: 'SOW Section 3.2 - Master Data Management',
         billing_method: 'per-event'
       },
       {
-        name: 'Non-Compliant Inbound Remediation',
-        sow: 'SOW Section 4.1',
+        name: 'Material Change',
+        sow: 'SOW Section 3.3 - Master Data Management',
+        billing_method: 'per-event'
+      },
+      {
+        name: 'Customer Add',
+        sow: 'SOW Section 3.4 - Customer Data Management',
+        billing_method: 'per-event'
+      },
+      {
+        name: 'Customer Change',
+        sow: 'SOW Section 3.5 - Customer Data Management',
+        billing_method: 'per-event'
+      },
+      // B. Inbound & Warehouse Events
+      {
+        name: 'Inbound Non-Compliance',
+        sow: 'SOW Section 4.1 - Inbound Processing',
         billing_method: 'hourly'
       },
       {
-        name: 'Re-palletization',
-        sow: 'SOW Section 4.2',
-        billing_method: 'per-event'
+        name: 'Warehouse Rework',
+        sow: 'SOW Section 4.2 - Warehouse Operations',
+        billing_method: 'hourly'
       },
+      // C. Fulfillment & Exception Events
       {
-        name: 'Expedited Shipment',
-        sow: 'SOW Section 5.1',
-        billing_method: 'per-event'
-      },
-      {
-        name: 'Customer Return Processing',
-        sow: 'SOW Section 6.1',
-        billing_method: 'per-event'
-      },
-      {
-        name: 'Damaged Goods Inspection',
-        sow: 'SOW Section 6.2',
+        name: 'Ad-Hoc Labor',
+        sow: 'SOW Section 5.1 - Non-Standard Operations',
         billing_method: 'hourly'
       },
       {
-        name: 'Cycle Count',
-        sow: 'SOW Section 7.1',
-        billing_method: 'per-event'
-      },
-      {
-        name: 'Custom Kitting',
-        sow: 'SOW Section 8.1',
+        name: 'Returns Processing',
+        sow: 'SOW Section 5.2 - Returns Handling',
         billing_method: 'hourly'
       },
+      // D. Transportation & Logistics Events
       {
-        name: 'Custom Labeling',
-        sow: 'SOW Section 8.2',
-        billing_method: 'per-event'
+        name: 'Transportation Exception',
+        sow: 'SOW Section 6.1 - Carrier Exceptions',
+        billing_method: 'pass-through'
       },
       {
-        name: 'Customer Master Data Change',
-        sow: 'SOW Section 9.1',
+        name: 'Special Project',
+        sow: 'SOW Section 6.2 - Project Work',
         billing_method: 'per-event'
       }
     ];
