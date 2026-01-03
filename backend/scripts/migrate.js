@@ -24,36 +24,22 @@ CREATE TABLE IF NOT EXISTS customers (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Categories table
-CREATE TABLE IF NOT EXISTS categories (
+-- Event Types table (formerly Subtypes)
+CREATE TABLE IF NOT EXISTS event_types (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) UNIQUE NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Subtypes table
-CREATE TABLE IF NOT EXISTS subtypes (
-  id SERIAL PRIMARY KEY,
-  category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
-  name VARCHAR(255) NOT NULL,
-  default_sop_reference TEXT,
   default_sow_reference TEXT,
   billing_method_hint VARCHAR(100),
-  suggested_unit_type VARCHAR(100),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(category_id, name)
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Billable Events table
 CREATE TABLE IF NOT EXISTS billable_events (
   id SERIAL PRIMARY KEY,
   customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE RESTRICT,
-  category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
-  subtype_id INTEGER NOT NULL REFERENCES subtypes(id) ON DELETE RESTRICT,
+  event_type_id INTEGER NOT NULL REFERENCES event_types(id) ON DELETE RESTRICT,
   event_date DATE NOT NULL,
   quantity DECIMAL(10, 2) NOT NULL,
-  unit_type VARCHAR(100) NOT NULL,
-  sop_reference TEXT,
   sow_reference TEXT,
   status VARCHAR(50) DEFAULT 'logged' CHECK (status IN ('logged', 'reviewed', 'invoiced')),
   ops_notes TEXT,
@@ -83,6 +69,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_events_customer ON billable_events(customer_id);
+CREATE INDEX IF NOT EXISTS idx_events_event_type ON billable_events(event_type_id);
 CREATE INDEX IF NOT EXISTS idx_events_date ON billable_events(event_date);
 CREATE INDEX IF NOT EXISTS idx_events_status ON billable_events(status);
 CREATE INDEX IF NOT EXISTS idx_events_locked ON billable_events(ops_locked);
@@ -90,7 +77,6 @@ CREATE INDEX IF NOT EXISTS idx_events_created_at ON billable_events(created_at);
 CREATE INDEX IF NOT EXISTS idx_audit_event ON audit_log(event_id);
 CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);
-CREATE INDEX IF NOT EXISTS idx_subtypes_category ON subtypes(category_id);
 `;
 
 async function migrate() {

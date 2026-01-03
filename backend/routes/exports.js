@@ -26,12 +26,9 @@ router.post('/', async (req, res) => {
         e.id,
         c.customer_id as customer_code,
         c.legal_name as customer_name,
-        cat.name as category,
-        s.name as subtype,
+        et.name as event_type,
         e.event_date,
         e.quantity,
-        e.unit_type,
-        e.sop_reference,
         e.sow_reference,
         e.status,
         e.ops_notes,
@@ -42,8 +39,7 @@ router.post('/', async (req, res) => {
         e.ops_locked
       FROM billable_events e
       JOIN customers c ON e.customer_id = c.id
-      JOIN categories cat ON e.category_id = cat.id
-      JOIN subtypes s ON e.subtype_id = s.id
+      JOIN event_types et ON e.event_type_id = et.id
       JOIN users u ON e.created_by = u.id
       WHERE 1=1
     `;
@@ -76,7 +72,7 @@ router.post('/', async (req, res) => {
       params.push(date_to);
     }
 
-    query += ' ORDER BY e.event_date DESC, c.legal_name, cat.name, s.name';
+    query += ' ORDER BY e.event_date DESC, c.legal_name, et.name';
 
     const result = await db.query(query, params);
     const events = result.rows;
@@ -90,12 +86,9 @@ router.post('/', async (req, res) => {
         'Event ID',
         'Customer Code',
         'Customer Name',
-        'Category',
-        'Subtype',
+        'Event Type',
         'Event Date',
         'Quantity',
-        'Unit Type',
-        'SOP Reference',
         'SOW Reference',
         'Status',
         'External Ref Type',
@@ -112,12 +105,9 @@ router.post('/', async (req, res) => {
           event.id,
           `"${event.customer_code}"`,
           `"${event.customer_name}"`,
-          `"${event.category}"`,
-          `"${event.subtype}"`,
+          `"${event.event_type}"`,
           event.event_date,
           event.quantity,
-          `"${event.unit_type}"`,
-          `"${event.sop_reference || ''}"`,
           `"${event.sow_reference || ''}"`,
           event.status,
           `"${event.external_ref_type || ''}"`,
@@ -145,12 +135,9 @@ router.post('/', async (req, res) => {
         { header: 'Event ID', key: 'id', width: 10 },
         { header: 'Customer Code', key: 'customer_code', width: 15 },
         { header: 'Customer Name', key: 'customer_name', width: 25 },
-        { header: 'Category', key: 'category', width: 20 },
-        { header: 'Subtype', key: 'subtype', width: 25 },
+        { header: 'Event Type', key: 'event_type', width: 30 },
         { header: 'Event Date', key: 'event_date', width: 12 },
         { header: 'Quantity', key: 'quantity', width: 10 },
-        { header: 'Unit Type', key: 'unit_type', width: 15 },
-        { header: 'SOP Reference', key: 'sop_reference', width: 15 },
         { header: 'SOW Reference', key: 'sow_reference', width: 15 },
         { header: 'Status', key: 'status', width: 12 },
         { header: 'External Ref Type', key: 'external_ref_type', width: 18 },
@@ -179,10 +166,8 @@ router.post('/', async (req, res) => {
 
       summarySheet.columns = [
         { header: 'Customer', key: 'customer', width: 25 },
-        { header: 'Category', key: 'category', width: 20 },
-        { header: 'Subtype', key: 'subtype', width: 25 },
+        { header: 'Event Type', key: 'event_type', width: 30 },
         { header: 'Total Quantity', key: 'total_quantity', width: 15 },
-        { header: 'Unit Type', key: 'unit_type', width: 15 },
         { header: 'Event Count', key: 'event_count', width: 12 }
       ];
 
@@ -198,14 +183,12 @@ router.post('/', async (req, res) => {
       const summary = {};
 
       events.forEach(event => {
-        const key = `${event.customer_name}|${event.category}|${event.subtype}|${event.unit_type}`;
+        const key = `${event.customer_name}|${event.event_type}`;
 
         if (!summary[key]) {
           summary[key] = {
             customer: event.customer_name,
-            category: event.category,
-            subtype: event.subtype,
-            unit_type: event.unit_type,
+            event_type: event.event_type,
             total_quantity: 0,
             event_count: 0
           };

@@ -30,145 +30,77 @@ async function seed() {
     `);
     console.log('✓ Sample customers created');
 
-    // Create categories
-    const categories = [
-      'Order Processing',
-      'Inbound Operations',
-      'Outbound Operations',
-      'Returns Processing',
-      'Inventory Management',
-      'Special Handling',
-      'Customer Service'
-    ];
-
-    for (const category of categories) {
-      await db.query(
-        'INSERT INTO categories (name) VALUES ($1) ON CONFLICT (name) DO NOTHING',
-        [category]
-      );
-    }
-    console.log('✓ Categories created');
-
-    // Get category IDs
-    const catResult = await db.query('SELECT id, name FROM categories');
-    const categoryMap = {};
-    catResult.rows.forEach(row => {
-      categoryMap[row.name] = row.id;
-    });
-
-    // Create subtypes
-    const subtypes = [
+    // Create event types
+    const eventTypes = [
       {
-        category: 'Order Processing',
         name: 'Manual Order',
-        sop: 'SOP-OP-001',
         sow: 'SOW Section 3.1',
-        billing_method: 'per-event',
-        unit_type: 'orders'
+        billing_method: 'per-event'
       },
       {
-        category: 'Order Processing',
         name: 'Order Modification',
-        sop: 'SOP-OP-002',
         sow: 'SOW Section 3.2',
-        billing_method: 'per-event',
-        unit_type: 'orders'
+        billing_method: 'per-event'
       },
       {
-        category: 'Inbound Operations',
         name: 'Non-Compliant Inbound Remediation',
-        sop: 'SOP-IB-001',
         sow: 'SOW Section 4.1',
-        billing_method: 'hourly',
-        unit_type: 'hours'
+        billing_method: 'hourly'
       },
       {
-        category: 'Inbound Operations',
         name: 'Re-palletization',
-        sop: 'SOP-IB-002',
         sow: 'SOW Section 4.2',
-        billing_method: 'per-event',
-        unit_type: 'pallets'
+        billing_method: 'per-event'
       },
       {
-        category: 'Outbound Operations',
         name: 'Expedited Shipment',
-        sop: 'SOP-OB-001',
         sow: 'SOW Section 5.1',
-        billing_method: 'per-event',
-        unit_type: 'shipments'
+        billing_method: 'per-event'
       },
       {
-        category: 'Returns Processing',
         name: 'Customer Return Processing',
-        sop: 'SOP-RT-001',
         sow: 'SOW Section 6.1',
-        billing_method: 'per-event',
-        unit_type: 'returns'
+        billing_method: 'per-event'
       },
       {
-        category: 'Returns Processing',
         name: 'Damaged Goods Inspection',
-        sop: 'SOP-RT-002',
         sow: 'SOW Section 6.2',
-        billing_method: 'hourly',
-        unit_type: 'hours'
+        billing_method: 'hourly'
       },
       {
-        category: 'Inventory Management',
         name: 'Cycle Count',
-        sop: 'SOP-IM-001',
         sow: 'SOW Section 7.1',
-        billing_method: 'per-event',
-        unit_type: 'SKUs'
+        billing_method: 'per-event'
       },
       {
-        category: 'Special Handling',
         name: 'Custom Kitting',
-        sop: 'SOP-SH-001',
         sow: 'SOW Section 8.1',
-        billing_method: 'hourly',
-        unit_type: 'hours'
+        billing_method: 'hourly'
       },
       {
-        category: 'Special Handling',
         name: 'Custom Labeling',
-        sop: 'SOP-SH-002',
         sow: 'SOW Section 8.2',
-        billing_method: 'per-event',
-        unit_type: 'units'
+        billing_method: 'per-event'
       },
       {
-        category: 'Customer Service',
         name: 'Customer Master Data Change',
-        sop: 'SOP-CS-001',
         sow: 'SOW Section 9.1',
-        billing_method: 'per-event',
-        unit_type: 'changes'
+        billing_method: 'per-event'
       }
     ];
 
-    for (const subtype of subtypes) {
-      const categoryId = categoryMap[subtype.category];
-      if (categoryId) {
-        await db.query(`
-          INSERT INTO subtypes (
-            category_id, name, default_sop_reference,
-            default_sow_reference, billing_method_hint, suggested_unit_type
-          )
-          VALUES ($1, $2, $3, $4, $5, $6)
-          ON CONFLICT (category_id, name) DO NOTHING
-        `, [
-          categoryId,
-          subtype.name,
-          subtype.sop,
-          subtype.sow,
-          subtype.billing_method,
-          subtype.unit_type
-        ]);
-      }
+    for (const eventType of eventTypes) {
+      await db.query(`
+        INSERT INTO event_types (name, default_sow_reference, billing_method_hint)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (name) DO NOTHING
+      `, [
+        eventType.name,
+        eventType.sow,
+        eventType.billing_method
+      ]);
     }
-    console.log('✓ Subtypes created');
+    console.log('✓ Event types created');
 
     console.log('\nDatabase seeding completed successfully!');
     console.log('\nTest credentials:');

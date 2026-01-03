@@ -31,13 +31,11 @@ router.get('/', async (req, res) => {
       SELECT e.*,
         c.legal_name as customer_name,
         c.customer_id as customer_code,
-        cat.name as category_name,
-        s.name as subtype_name,
+        et.name as event_type_name,
         u.full_name as created_by_name
       FROM billable_events e
       JOIN customers c ON e.customer_id = c.id
-      JOIN categories cat ON e.category_id = cat.id
-      JOIN subtypes s ON e.subtype_id = s.id
+      JOIN event_types et ON e.event_type_id = et.id
       JOIN users u ON e.created_by = u.id
       WHERE 1=1
     `;
@@ -75,7 +73,7 @@ router.get('/', async (req, res) => {
     }
 
     if (missing_references === 'true') {
-      query += ` AND (e.sop_reference IS NULL OR e.sop_reference = '' OR e.sow_reference IS NULL OR e.sow_reference = '')`;
+      query += ` AND (e.sow_reference IS NULL OR e.sow_reference = '')`;
     }
 
     query += ' ORDER BY e.event_date DESC, e.created_at DESC';
@@ -95,15 +93,12 @@ router.get('/:id', async (req, res) => {
       SELECT e.*,
         c.legal_name as customer_name,
         c.customer_id as customer_code,
-        cat.name as category_name,
-        s.name as subtype_name,
-        s.default_sop_reference,
-        s.default_sow_reference,
+        et.name as event_type_name,
+        et.default_sow_reference,
         u.full_name as created_by_name
       FROM billable_events e
       JOIN customers c ON e.customer_id = c.id
-      JOIN categories cat ON e.category_id = cat.id
-      JOIN subtypes s ON e.subtype_id = s.id
+      JOIN event_types et ON e.event_type_id = et.id
       JOIN users u ON e.created_by = u.id
       WHERE e.id = $1
     `, [req.params.id]);
@@ -124,12 +119,9 @@ router.post('/', async (req, res) => {
   try {
     const {
       customer_id,
-      category_id,
-      subtype_id,
+      event_type_id,
       event_date,
       quantity,
-      unit_type,
-      sop_reference,
       sow_reference,
       ops_notes,
       external_ref_type,
@@ -137,42 +129,38 @@ router.post('/', async (req, res) => {
     } = req.body;
 
     // Validation
-    if (!customer_id || !category_id || !subtype_id || !event_date || !quantity || !unit_type) {
+    if (!customer_id || !event_type_id || !event_date || !quantity) {
       return res.status(400).json({
-        error: 'Customer, category, subtype, event date, quantity, and unit type are required'
+        error: 'Customer, event type, event date, and quantity are required'
       });
     }
 
-    // Get subtype defaults if not provided
-    let finalSopRef = sop_reference;
+    // Get event type defaults if not provided
     let finalSowRef = sow_reference;
-    let finalUnitType = unit_type;
 
-    if (!finalSopRef || !finalSowRef || !finalUnitType) {
-      const subtypeResult = await db.query(
-        'SELECT default_sop_reference, default_sow_reference, suggested_unit_type FROM subtypes WHERE id = $1',
-        [subtype_id]
+    if (!finalSowRef) {
+      const eventTypeResult = await db.query(
+        'SELECT default_sow_reference FROM event_types WHERE id = $1',
+        [event_type_id]
       );
 
-      if (subtypeResult.rows.length > 0) {
-        const subtype = subtypeResult.rows[0];
-        finalSopRef = finalSopRef || subtype.default_sop_reference;
-        finalSowRef = finalSowRef || subtype.default_sow_reference;
-        finalUnitType = finalUnitType || subtype.suggested_unit_type;
+      if (eventTypeResult.rows.length > 0) {
+        const eventType = eventTypeResult.rows[0];
+        finalSowRef = finalSowRef || eventType.default_sow_reference;
       }
     }
 
     const result = await db.query(`
       INSERT INTO billable_events (
-        customer_id, category_id, subtype_id, event_date, quantity, unit_type,
-        sop_reference, sow_reference, ops_notes, external_ref_type,
+        customer_id, event_type_id, event_date, quantity,
+        sow_reference, ops_notes, external_ref_type,
         external_ref_id, created_by, status
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'logged')
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'logged')
       RETURNING *
     `, [
-      customer_id, category_id, subtype_id, event_date, quantity, finalUnitType,
-      finalSopRef, finalSowRef, ops_notes, external_ref_type,
+      customer_id, event_type_id, event_date, quantity,
+      finalSowRef, ops_notes, external_ref_type,
       external_ref_id, req.user.id
     ]);
 
@@ -184,7 +172,7 @@ router.post('/', async (req, res) => {
     res.status(201).json(event);
   } catch (error) {
     if (error.code === '23503') {
-      return res.status(404).json({ error: 'Customer, category, or subtype not found' });
+      return res.status(404).json({ error: 'Customer or event type not found' });
     }
     console.error('Create event error:', error);
     res.status(500).json({ error: 'Failed to create event' });
@@ -231,12 +219,9 @@ router.put('/:id', async (req, res) => {
 
     const {
       customer_id,
-      category_id,
-      subtype_id,
+      event_type_id,
       event_date,
       quantity,
-      unit_type,
-      sop_reference,
       sow_reference,
       ops_notes,
       external_ref_type,
@@ -246,27 +231,24 @@ router.put('/:id', async (req, res) => {
     // Log changes
     const changes = [];
     if (customer_id !== existingEvent.customer_id) changes.push(['customer_id', existingEvent.customer_id, customer_id]);
-    if (category_id !== existingEvent.category_id) changes.push(['category_id', existingEvent.category_id, category_id]);
-    if (subtype_id !== existingEvent.subtype_id) changes.push(['subtype_id', existingEvent.subtype_id, subtype_id]);
+    if (event_type_id !== existingEvent.event_type_id) changes.push(['event_type_id', existingEvent.event_type_id, event_type_id]);
     if (event_date !== existingEvent.event_date) changes.push(['event_date', existingEvent.event_date, event_date]);
     if (quantity !== existingEvent.quantity) changes.push(['quantity', existingEvent.quantity, quantity]);
-    if (unit_type !== existingEvent.unit_type) changes.push(['unit_type', existingEvent.unit_type, unit_type]);
-    if (sop_reference !== existingEvent.sop_reference) changes.push(['sop_reference', existingEvent.sop_reference, sop_reference]);
     if (sow_reference !== existingEvent.sow_reference) changes.push(['sow_reference', existingEvent.sow_reference, sow_reference]);
     if (external_ref_type !== existingEvent.external_ref_type) changes.push(['external_ref_type', existingEvent.external_ref_type, external_ref_type]);
     if (external_ref_id !== existingEvent.external_ref_id) changes.push(['external_ref_id', existingEvent.external_ref_id, external_ref_id]);
 
     const result = await db.query(`
       UPDATE billable_events
-      SET customer_id = $1, category_id = $2, subtype_id = $3, event_date = $4,
-          quantity = $5, unit_type = $6, sop_reference = $7, sow_reference = $8,
-          ops_notes = $9, external_ref_type = $10, external_ref_id = $11,
+      SET customer_id = $1, event_type_id = $2, event_date = $3,
+          quantity = $4, sow_reference = $5,
+          ops_notes = $6, external_ref_type = $7, external_ref_id = $8,
           last_edited_at = CURRENT_TIMESTAMP
-      WHERE id = $12
+      WHERE id = $9
       RETURNING *
     `, [
-      customer_id, category_id, subtype_id, event_date, quantity, unit_type,
-      sop_reference, sow_reference, ops_notes, external_ref_type,
+      customer_id, event_type_id, event_date, quantity,
+      sow_reference, ops_notes, external_ref_type,
       external_ref_id, req.params.id
     ]);
 
