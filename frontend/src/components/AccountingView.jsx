@@ -298,12 +298,9 @@ const AccountingView = () => {
                   </th>
                   <th>Date</th>
                   <th>Customer</th>
-                  <th>Category</th>
-                  <th>Subtype</th>
-                  <th>Qty</th>
-                  <th>Unit</th>
-                  <th>SOP</th>
-                  <th>SOW</th>
+                  <th>Event Type</th>
+                  <th>Quantity</th>
+                  <th>SOW Ref</th>
                   <th>Status</th>
                   <th>Locked</th>
                   <th>Actions</th>
@@ -321,18 +318,11 @@ const AccountingView = () => {
                     </td>
                     <td>{new Date(event.event_date).toLocaleDateString()}</td>
                     <td>{event.customer_name}</td>
-                    <td>{event.category_name}</td>
-                    <td>{event.subtype_name}</td>
+                    <td>{event.event_type_name}</td>
                     <td>{event.quantity}</td>
-                    <td>{event.unit_type}</td>
-                    <td>
-                      {event.sop_reference || (
-                        <span style={{ color: '#dc3545' }}>Missing</span>
-                      )}
-                    </td>
                     <td>
                       {event.sow_reference || (
-                        <span style={{ color: '#dc3545' }}>Missing</span>
+                        <span style={{ color: 'var(--danger)' }}>Missing</span>
                       )}
                     </td>
                     <td>
