@@ -4,12 +4,9 @@ import api from '../api/client';
 const EventForm = ({ onClose, onSuccess, eventData = null }) => {
   const [formData, setFormData] = useState({
     customer_id: '',
-    category_id: '',
-    subtype_id: '',
+    event_type_id: '',
     event_date: new Date().toISOString().split('T')[0],
     quantity: '',
-    unit_type: '',
-    sop_reference: '',
     sow_reference: '',
     external_ref_type: '',
     external_ref_id: '',
@@ -17,15 +14,14 @@ const EventForm = ({ onClose, onSuccess, eventData = null }) => {
   });
 
   const [customers, setCustomers] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [subtypes, setSubtypes] = useState([]);
+  const [eventTypes, setEventTypes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [warnings, setWarnings] = useState([]);
 
   useEffect(() => {
     loadCustomers();
-    loadCategories();
+    loadEventTypes();
 
     if (eventData) {
       setFormData(eventData);
@@ -33,26 +29,16 @@ const EventForm = ({ onClose, onSuccess, eventData = null }) => {
   }, [eventData]);
 
   useEffect(() => {
-    if (formData.category_id) {
-      loadSubtypes(formData.category_id);
-    } else {
-      setSubtypes([]);
-    }
-  }, [formData.category_id]);
-
-  useEffect(() => {
-    if (formData.subtype_id) {
-      const subtype = subtypes.find((s) => s.id === parseInt(formData.subtype_id));
-      if (subtype) {
+    if (formData.event_type_id) {
+      const eventType = eventTypes.find((et) => et.id === parseInt(formData.event_type_id));
+      if (eventType && !formData.sow_reference) {
         setFormData((prev) => ({
           ...prev,
-          unit_type: prev.unit_type || subtype.suggested_unit_type || '',
-          sop_reference: prev.sop_reference || subtype.default_sop_reference || '',
-          sow_reference: prev.sow_reference || subtype.default_sow_reference || ''
+          sow_reference: prev.sow_reference || eventType.default_sow_reference || ''
         }));
       }
     }
-  }, [formData.subtype_id, subtypes]);
+  }, [formData.event_type_id, eventTypes]);
 
   const loadCustomers = async () => {
     try {
@@ -63,19 +49,12 @@ const EventForm = ({ onClose, onSuccess, eventData = null }) => {
     }
   };
 
-  const loadCategories = async () => {
+  const loadEventTypes = async () => {
     try {
-      const response = await api.get('/taxonomy/categories');
-      setCategories(response.data);
+      const response = await api.get('/taxonomy/event-types');
+      setEventTypes(response.data);
     } catch (error) {
-      console.error('Failed to load categories:', error);
-    }
-  };
-
-  const loadSubtypes = async (categoryId) => {
-    const category = categories.find((c) => c.id === parseInt(categoryId));
-    if (category) {
-      setSubtypes(category.subtypes || []);
+      console.error('Failed to load event types:', error);
     }
   };
 
@@ -89,10 +68,6 @@ const EventForm = ({ onClose, onSuccess, eventData = null }) => {
 
   const validateForm = () => {
     const newWarnings = [];
-
-    if (!formData.sop_reference) {
-      newWarnings.push('SOP Reference is missing');
-    }
 
     if (!formData.sow_reference) {
       newWarnings.push('SOW Reference is missing');
@@ -116,8 +91,7 @@ const EventForm = ({ onClose, onSuccess, eventData = null }) => {
       const payload = {
         ...formData,
         customer_id: parseInt(formData.customer_id),
-        category_id: parseInt(formData.category_id),
-        subtype_id: parseInt(formData.subtype_id),
+        event_type_id: parseInt(formData.event_type_id),
         quantity: parseFloat(formData.quantity)
       };
 
@@ -159,35 +133,17 @@ const EventForm = ({ onClose, onSuccess, eventData = null }) => {
           </div>
 
           <div className="form-group">
-            <label>Category *</label>
+            <label>Event Type *</label>
             <select
-              name="category_id"
-              value={formData.category_id}
+              name="event_type_id"
+              value={formData.event_type_id}
               onChange={handleChange}
               required
             >
-              <option value="">Select Category</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>Subtype *</label>
-            <select
-              name="subtype_id"
-              value={formData.subtype_id}
-              onChange={handleChange}
-              required
-              disabled={!formData.category_id}
-            >
-              <option value="">Select Subtype</option>
-              {subtypes.map((subtype) => (
-                <option key={subtype.id} value={subtype.id}>
-                  {subtype.name}
+              <option value="">Select Event Type</option>
+              {eventTypes.map((eventType) => (
+                <option key={eventType.id} value={eventType.id}>
+                  {eventType.name}
                 </option>
               ))}
             </select>
@@ -204,41 +160,16 @@ const EventForm = ({ onClose, onSuccess, eventData = null }) => {
             />
           </div>
 
-          <div style={{ display: 'flex', gap: '15px' }}>
-            <div className="form-group" style={{ flex: 1 }}>
-              <label>Quantity *</label>
-              <input
-                type="number"
-                name="quantity"
-                value={formData.quantity}
-                onChange={handleChange}
-                step="0.01"
-                min="0"
-                required
-              />
-            </div>
-
-            <div className="form-group" style={{ flex: 1 }}>
-              <label>Unit Type *</label>
-              <input
-                type="text"
-                name="unit_type"
-                value={formData.unit_type}
-                onChange={handleChange}
-                placeholder="orders, pallets, hours, etc."
-                required
-              />
-            </div>
-          </div>
-
           <div className="form-group">
-            <label>SOP Reference</label>
+            <label>Quantity *</label>
             <input
-              type="text"
-              name="sop_reference"
-              value={formData.sop_reference}
+              type="number"
+              name="quantity"
+              value={formData.quantity}
               onChange={handleChange}
-              placeholder="e.g., SOP-OP-001"
+              step="0.01"
+              min="0"
+              required
             />
           </div>
 
@@ -294,14 +225,14 @@ const EventForm = ({ onClose, onSuccess, eventData = null }) => {
 
           {warnings.length > 0 && (
             <div className="warning" style={{ marginBottom: '15px' }}>
-              <strong>Warnings:</strong>
+              <strong>⚠️ Warning:</strong>
               <ul style={{ marginTop: '5px', marginLeft: '20px' }}>
                 {warnings.map((warning, index) => (
                   <li key={index}>{warning}</li>
                 ))}
               </ul>
               <p style={{ marginTop: '5px', fontSize: '12px' }}>
-                You can still save, but these fields are recommended for billing.
+                You can still save, but this field is recommended for billing.
               </p>
             </div>
           )}

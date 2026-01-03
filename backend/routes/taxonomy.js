@@ -7,218 +7,77 @@ const router = express.Router();
 // All taxonomy routes require authentication
 router.use(authenticateToken);
 
-// Get all categories with their subtypes
-router.get('/categories', async (req, res) => {
+// Get all event types
+router.get('/event-types', async (req, res) => {
   try {
     const result = await db.query(`
-      SELECT c.id, c.name, c.created_at,
-        COALESCE(
-          json_agg(
-            json_build_object(
-              'id', s.id,
-              'name', s.name,
-              'default_sop_reference', s.default_sop_reference,
-              'default_sow_reference', s.default_sow_reference,
-              'billing_method_hint', s.billing_method_hint,
-              'suggested_unit_type', s.suggested_unit_type
-            ) ORDER BY s.name
-          ) FILTER (WHERE s.id IS NOT NULL),
-          '[]'
-        ) as subtypes
-      FROM categories c
-      LEFT JOIN subtypes s ON c.id = s.category_id
-      GROUP BY c.id, c.name, c.created_at
-      ORDER BY c.name
+      SELECT *
+      FROM event_types
+      ORDER BY name
     `);
 
     res.json(result.rows);
   } catch (error) {
-    console.error('Get categories error:', error);
-    res.status(500).json({ error: 'Failed to fetch categories' });
+    console.error('Get event types error:', error);
+    res.status(500).json({ error: 'Failed to fetch event types' });
   }
 });
 
-// Get single category with subtypes
-router.get('/categories/:id', async (req, res) => {
+// Get single event type
+router.get('/event-types/:id', async (req, res) => {
   try {
-    const catResult = await db.query(
-      'SELECT * FROM categories WHERE id = $1',
-      [req.params.id]
-    );
-
-    if (catResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Category not found' });
-    }
-
-    const subResult = await db.query(
-      'SELECT * FROM subtypes WHERE category_id = $1 ORDER BY name',
-      [req.params.id]
-    );
-
-    res.json({
-      ...catResult.rows[0],
-      subtypes: subResult.rows
-    });
-  } catch (error) {
-    console.error('Get category error:', error);
-    res.status(500).json({ error: 'Failed to fetch category' });
-  }
-});
-
-// Create category (admin only)
-router.post('/categories', requireRole('admin'), async (req, res) => {
-  try {
-    const { name } = req.body;
-
-    if (!name) {
-      return res.status(400).json({ error: 'Category name is required' });
-    }
-
     const result = await db.query(
-      'INSERT INTO categories (name) VALUES ($1) RETURNING *',
-      [name]
-    );
-
-    res.status(201).json(result.rows[0]);
-  } catch (error) {
-    if (error.code === '23505') {
-      return res.status(409).json({ error: 'Category already exists' });
-    }
-    console.error('Create category error:', error);
-    res.status(500).json({ error: 'Failed to create category' });
-  }
-});
-
-// Update category (admin only)
-router.put('/categories/:id', requireRole('admin'), async (req, res) => {
-  try {
-    const { name } = req.body;
-
-    if (!name) {
-      return res.status(400).json({ error: 'Category name is required' });
-    }
-
-    const result = await db.query(
-      'UPDATE categories SET name = $1 WHERE id = $2 RETURNING *',
-      [name, req.params.id]
+      'SELECT * FROM event_types WHERE id = $1',
+      [req.params.id]
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Category not found' });
+      return res.status(404).json({ error: 'Event type not found' });
     }
 
     res.json(result.rows[0]);
   } catch (error) {
-    if (error.code === '23505') {
-      return res.status(409).json({ error: 'Category name already exists' });
-    }
-    console.error('Update category error:', error);
-    res.status(500).json({ error: 'Failed to update category' });
+    console.error('Get event type error:', error);
+    res.status(500).json({ error: 'Failed to fetch event type' });
   }
 });
 
-// Get all subtypes
-router.get('/subtypes', async (req, res) => {
-  try {
-    const { category_id } = req.query;
-
-    let query = `
-      SELECT s.*, c.name as category_name
-      FROM subtypes s
-      JOIN categories c ON s.category_id = c.id
-    `;
-    const params = [];
-
-    if (category_id) {
-      query += ' WHERE s.category_id = $1';
-      params.push(category_id);
-    }
-
-    query += ' ORDER BY c.name, s.name';
-
-    const result = await db.query(query, params);
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Get subtypes error:', error);
-    res.status(500).json({ error: 'Failed to fetch subtypes' });
-  }
-});
-
-// Get single subtype
-router.get('/subtypes/:id', async (req, res) => {
-  try {
-    const result = await db.query(`
-      SELECT s.*, c.name as category_name
-      FROM subtypes s
-      JOIN categories c ON s.category_id = c.id
-      WHERE s.id = $1
-    `, [req.params.id]);
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Subtype not found' });
-    }
-
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Get subtype error:', error);
-    res.status(500).json({ error: 'Failed to fetch subtype' });
-  }
-});
-
-// Create subtype (admin only)
-router.post('/subtypes', requireRole('admin'), async (req, res) => {
+// Create event type (admin only)
+router.post('/event-types', requireRole('admin'), async (req, res) => {
   try {
     const {
-      category_id,
       name,
-      default_sop_reference,
       default_sow_reference,
-      billing_method_hint,
-      suggested_unit_type
+      billing_method_hint
     } = req.body;
 
-    if (!category_id || !name) {
-      return res.status(400).json({ error: 'Category ID and name are required' });
+    if (!name) {
+      return res.status(400).json({ error: 'Event type name is required' });
     }
 
     const result = await db.query(`
-      INSERT INTO subtypes (
-        category_id, name, default_sop_reference,
-        default_sow_reference, billing_method_hint, suggested_unit_type
-      )
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO event_types (name, default_sow_reference, billing_method_hint)
+      VALUES ($1, $2, $3)
       RETURNING *
-    `, [
-      category_id,
-      name,
-      default_sop_reference,
-      default_sow_reference,
-      billing_method_hint,
-      suggested_unit_type
-    ]);
+    `, [name, default_sow_reference, billing_method_hint]);
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
     if (error.code === '23505') {
-      return res.status(409).json({ error: 'Subtype already exists in this category' });
+      return res.status(409).json({ error: 'Event type already exists' });
     }
-    if (error.code === '23503') {
-      return res.status(404).json({ error: 'Category not found' });
-    }
-    console.error('Create subtype error:', error);
-    res.status(500).json({ error: 'Failed to create subtype' });
+    console.error('Create event type error:', error);
+    res.status(500).json({ error: 'Failed to create event type' });
   }
 });
 
-// Update subtype (admin only)
-router.put('/subtypes/:id', requireRole('admin'), async (req, res) => {
+// Update event type (admin only)
+router.put('/event-types/:id', requireRole('admin'), async (req, res) => {
   try {
     const {
       name,
-      default_sop_reference,
       default_sow_reference,
-      billing_method_hint,
-      suggested_unit_type
+      billing_method_hint
     } = req.body;
 
     if (!name) {
@@ -226,31 +85,53 @@ router.put('/subtypes/:id', requireRole('admin'), async (req, res) => {
     }
 
     const result = await db.query(`
-      UPDATE subtypes
+      UPDATE event_types
       SET name = $1,
-          default_sop_reference = $2,
-          default_sow_reference = $3,
-          billing_method_hint = $4,
-          suggested_unit_type = $5
-      WHERE id = $6
+          default_sow_reference = $2,
+          billing_method_hint = $3
+      WHERE id = $4
       RETURNING *
-    `, [
-      name,
-      default_sop_reference,
-      default_sow_reference,
-      billing_method_hint,
-      suggested_unit_type,
-      req.params.id
-    ]);
+    `, [name, default_sow_reference, billing_method_hint, req.params.id]);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Subtype not found' });
+      return res.status(404).json({ error: 'Event type not found' });
     }
 
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Update subtype error:', error);
-    res.status(500).json({ error: 'Failed to update subtype' });
+    console.error('Update event type error:', error);
+    res.status(500).json({ error: 'Failed to update event type' });
+  }
+});
+
+// Delete event type (admin only)
+router.delete('/event-types/:id', requireRole('admin'), async (req, res) => {
+  try {
+    // Check if event type has any events
+    const eventCheck = await db.query(
+      'SELECT COUNT(*) FROM billable_events WHERE event_type_id = $1',
+      [req.params.id]
+    );
+
+    if (parseInt(eventCheck.rows[0].count) > 0) {
+      return res.status(409).json({
+        error: 'Cannot delete event type with existing billable events'
+      });
+    }
+
+    const result = await db.query(
+      'DELETE FROM event_types WHERE id = $1 RETURNING *',
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Event type not found' });
+    }
+
+    res.json({ message: 'Event type deleted successfully' });
+  } catch (error) {
+    console.error('Delete event type error:', error);
+    res.status(500).json({ error: 'Failed to delete event type' });
   }
 });
 
